@@ -1,0 +1,8 @@
+.env
+build/
+out/
+*.img
+*.ko
+*.apk
+.DS_Store
+patches/manual-hook/REPORT.md

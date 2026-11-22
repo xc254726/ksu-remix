@@ -1,0 +1,94 @@
+name: build
+
+on:
+  workflow_dispatch:
+    inputs:
+      kernel_release:
+        description: '目标内核版本串（设备 uname -r 原样）'
+        required: true
+        default: '6.6.66-android15-8-gd43086512890-abogki423825152-4k'
+      kernel_repo:
+        description: '内核源码仓库'
+        required: true
+        default: 'https://github.com/realme-kernel-opensource/realme-cn_gt7-AndroidV-kernel-source'
+      kernel_ref:
+        description: '内核分支/tag'
+        required: true
+        default: 'master'
+      defconfig:
+        description: 'defconfig 名称'
+        required: true
+        default: 'gki_defconfig'
+      ksu_repo:
+        description: 'KernelSU 二改源'
+        required: true
+        default: 'https://github.com/KOWX712/KernelSU'
+      ksu_ref:
+        description: 'KernelSU 分支/tag'
+        required: true
+        default: 'master'
+      ksu_mode:
+        description: 'builtin 或 module'
+        required: true
+        default: 'builtin'
+      hook_mode:
+        description: 'kprobe 或 manual'
+        required: true
+        default: 'kprobe'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装依赖
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential bc bison flex libssl-dev libelf-dev \
+            clang lld llvm python3 zip unzip cpio rsync kmod
+          clang --version
+
+      - name: 准备环境变量
+        run: |
+          cat > .env <<'EOF'
+          KERNEL_RELEASE="${{ inputs.kernel_release }}"
+          KERNEL_REPO="${{ inputs.kernel_repo }}"
+          KERNEL_REF="${{ inputs.kernel_ref }}"
+          DEFCONFIG="${{ inputs.defconfig }}"
+          KSU_REPO="${{ inputs.ksu_repo }}"
+          KSU_REF="${{ inputs.ksu_ref }}"
+          KSU_MODE="${{ inputs.ksu_mode }}"
+          HOOK_MODE="${{ inputs.hook_mode }}"
+          EOF
+          sed -i 's/^ *//' .env
+          cat .env
+
+      - name: 体检
+        run: make doctor
+
+      - name: 拉源码并集成 KernelSU
+        run: make fetch
+        env:
+          STRICT_VERSION: '0'
+
+      - name: 生成配置
+        run: make config
+
+      - name: 编译内核
+        run: make kernel
+
+      - name: 收集产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ inputs.kernel_release }}
+          path: |
+            out/Image
+            out/Image.gz
+            out/Image.lz4
+            out/kernelsu.ko
+            out/include/config/kernel.release
+          if-no-files-found: error
+          retention-days: 30
