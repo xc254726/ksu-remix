@@ -16,7 +16,7 @@ KernelSU 二改构建工程：**面向"原版发行版装上去显示未安装 /
 | 失败原因 | 表现 | 本项目的处理 |
 |---|---|---|
 | 内核里没有 KSU 代码（只装了 APK） | 管理器显示"未安装" | 构建期强制 `CONFIG_KSU=y`（或 `=m` 走 LKM） |
-| 挂钩方式与内核不兼容 | 显示已安装但授权无效 / panic | 基座用 kprobe 插桩，另有 manual hook 兜底 |
+| 挂钩方式与内核不兼容 | 显示已安装但授权无效 / panic | 基座走 tracepoint / LSM，另有 manual hook 兜底 |
 | `.ko` 的 vermagic 与内核不匹配 | `insmod` 报 `invalid module format` | 锁定 `CONFIG_LOCALVERSION` 逐字符复刻内核版本串，含页大小后缀 |
 | 页大小不符（4k / 16k） | 刷入即不开机 | `PAGE_SIZE` 参与构建，编译期强制校验 |
 | vendor 模块符号 CRC 不匹配 | 能开机但无触控/无声音 | `CONFIG_MODVERSIONS` 可控，配套 `modules.load` 对表 |
@@ -62,7 +62,7 @@ KernelSU 二改构建工程：**面向"原版发行版装上去显示未安装 /
 | `Image` / `Image.gz` / `Image.lz4` | 编译出的内核镜像 |
 | `boot-<release>.img` | 用原厂 `boot.img` 重打包、已含 KSU 的引导镜像 |
 | `kernelsu.ko` | LKM 模式产物（`KSU_MODE=module` 时） |
-| 管理器 APK | 由基座仓库的 `manager/` 构建，需与内核版本配套 |
+| `out/apk/*.apk` | 管理器 APK，已注入配套 `ksud` 并重签（见 `docs/APK.md`） |
 
 ---
 
@@ -109,9 +109,30 @@ make pack       # 重打包 boot.img
 
 产物落在 `out/`。
 
-### 3. 云端构建（推荐）
+### 3. 出管理器 APK
 
-推到 GitHub，在 **Actions → build → Run workflow** 填参数即可。
+APK 必须跟内核配套，所以也自己编。除了上面的内核工具链，还需要 **JDK 21**、
+**Android SDK（compileSdk 37 / buildTools 36.1.0）**、**NDK 30.0.16248370**、
+**Rust nightly + cargo-ndk**。
+
+```bash
+make ksud      # 编 Rust 版 ksud（APK 里 libksud.so 的来源）
+make manager   # 编 rue 管理器 APK（此时还没有 ksud）
+make apk       # = manager + ksud + 注入重签，出最终 APK
+```
+
+最终 APK 在 `out/apk/`，脚本会 `unzip -l` 校验 `lib/<abi>/libksud.so` 确实在包里。
+默认只出 `arm64-v8a`，要其他 ABI：`KSUD_ARCHES="arm64-v8a,x86_64" make apk`。
+
+没给签名会**自动生成临时签名**（`out/remix-signing.jks`）。它和官方 rue 的签名不同，
+装了官方版必须先卸载。细节与常见报错见 **[docs/APK.md](docs/APK.md)**。
+
+### 4. 云端构建（推荐）
+
+推到 GitHub，在 **Actions → build → Run workflow** 填参数即可。两个 job 可独立开关：
+
+- `build_kernel` → 出内核 / `boot.img`
+- `build_apk` → 出管理器 APK（自动装 JDK 21 + NDK + Rust，编 ksud 再注入）
 
 > 工作流文件位于 `ci/build.yml`。因 gh token 缺 `workflow` scope，尚未移入 `.github/workflows/`，
 > 启用方式见 `ci/README.md`。
@@ -149,9 +170,9 @@ make pack       # 重打包 boot.img
 ```
 config/          kconfig fragment（KSU 开关、输入子系统、版本串/页大小占位）
 patches/         manual hook 接管点模板与报告
-scripts/         fetch / config / build / pack / doctor / gen-manual-hook
+scripts/         fetch / config / build / pack / build-ksud / build-manager / pack-apk
 ci/              GitHub Actions 工作流源文件
-docs/            原理说明、风险与合规
+docs/            原理说明（WHY / APK / RISKS）与合规
 ```
 
 ---
