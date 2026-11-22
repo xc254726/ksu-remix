@@ -1,14 +1,14 @@
 # KernelSU 二改 —— kconfig fragment
-# 用法：合并进 .config 后由 scripts/build.sh 校验
+# 目标：BakaSU（Baka-SU/BakaSU，原 ReSukiSU）
 #
-# KSU_MODE=builtin 时用 CONFIG_KSU=y
-# KSU_MODE=module  时用 CONFIG_KSU=m（脚本会自动替换下面那行）
+# 注意：BakaSU 的 Kconfig 只有 CONFIG_KSU 及若干 KSU_* 附加项，
+# 没有 CONFIG_KSU_KPROBES_HOOK（那是 SukiSU/KowSU 的选项）。
+# 它靠 LSM hook + syscall redirect 生效，编进内核即可，无需额外 hook 开关。
 
 CONFIG_KSU=y
 
-# --- 挂钩方式 ---
-# HOOK_MODE=kprobe：依赖 kprobe 动态插桩，原版行为
-CONFIG_KSU_KPROBES_HOOK=y
+# 调试模式：排查时可开，日志更详细，性能略降
+# CONFIG_KSU_DEBUG is not set
 
 # --- 安全模式 ---
 # 音量下键触发，能救回因模块导致的 bootloop

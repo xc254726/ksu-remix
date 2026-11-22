@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# 拉取内核源码 + 集成 KernelSU
+# 拉取内核源码 + 集成 KernelSU（BakaSU / KowSU 通用）
+#
+# 注意：BakaSU 自带的 kernel/setup.sh 会硬编码 `git clone ReSukiSU/ReSukiSU`
+# 并自行 checkout main，会忽略这里的 KSU_REF 与本地改动。因此本脚本自行完成
+# 集成，不调用上游 setup.sh。
 source "$(dirname "$0")/lib.sh"
 load_env
 
@@ -22,34 +26,42 @@ if ! check_source_version "$BASE"; then
   [[ "${STRICT_VERSION:-0}" == "1" ]] && die "STRICT_VERSION=1，中止"
 fi
 
-log "拉取 KernelSU：$KSU_REPO ($KSU_REF)"
+log "拉取 KernelSU 二改源：$KSU_REPO ($KSU_REF)"
 if [[ -d "$KSU_DIR/.git" ]]; then
-  git -C "$KSU_DIR" fetch --depth=1 origin "$KSU_REF" || true
-  git -C "$KSU_DIR" checkout FETCH_HEAD 2>/dev/null || true
+  git -C "$KSU_DIR" fetch --depth=1 origin "$KSU_REF"
+  git -C "$KSU_DIR" -c advice.detachedHead=false checkout FETCH_HEAD
 else
   git clone --depth=1 --branch "$KSU_REF" "$KSU_REPO" "$KSU_DIR"
 fi
+KSU_HEAD="$(git -C "$KSU_DIR" rev-parse --short HEAD)"
+log "KernelSU 版本：$KSU_REF @ $KSU_HEAD"
 
-log "集成 KernelSU 到内核树（复用上游 setup.sh）"
-if [[ -f "$KSU_DIR/kernel/setup.sh" ]]; then
-  ( cd "$KERNEL_DIR" && bash "$KSU_DIR/kernel/setup.sh" )
-elif [[ -d "$KSU_DIR/kernel" ]]; then
-  warn "上游未提供 setup.sh，改用目录拷贝方式"
-  rm -rf "$KERNEL_DIR/KernelSU"
-  cp -a "$KSU_DIR" "$KERNEL_DIR/KernelSU"
-  # 顶部 Makefile 挂载子目录
-  grep -q 'obj-\$(CONFIG_KSU)' "$KERNEL_DIR/Makefile" || \
-    printf '\nobj-$(CONFIG_KSU) += KernelSU/kernel/\n' >>"$KERNEL_DIR/Makefile"
-  # 纳入 Kconfig
-  grep -q 'source "KernelSU/kernel/Kconfig"' "$KERNEL_DIR/Kernel/Kconfig" 2>/dev/null || \
-    printf '\nsource "KernelSU/kernel/Kconfig"\n' >>"$KERNEL_DIR/Kernel/Kconfig" 2>/dev/null || true
+# ---- 集成：symlink + Makefile + Kconfig（等价于上游 setup.sh 的三步）----
+DRV="$KERNEL_DIR/drivers"
+[[ -d "$KERNEL_DIR/common/drivers" ]] && DRV="$KERNEL_DIR/common/drivers"
+[[ -d "$DRV" ]] || die "找不到 drivers/ 目录，内核树结构异常"
+
+log "建立符号链接：$DRV/kernelsu → $KSU_DIR"
+ln -sfn "$KSU_DIR" "$DRV/kernelsu"
+
+if grep -q 'kernelsu' "$DRV/Makefile"; then
+  log "drivers/Makefile 已包含 kernelsu，跳过"
 else
-  die "KernelSU 源码结构异常，找不到 kernel/ 目录"
+  log "drivers/Makefile 追加 obj-\$(CONFIG_KSU)"
+  printf 'obj-$(CONFIG_KSU) += kernelsu/\n' >>"$DRV/Makefile"
+fi
+
+if grep -q 'drivers/kernelsu/Kconfig' "$DRV/Kconfig"; then
+  log "drivers/Kconfig 已包含，跳过"
+else
+  log "drivers/Kconfig 挂载 kernelsu/Kconfig"
+  # 必须放在 menu 之前，否则 source 不被解析
+  sed -i '1i source "drivers/kernelsu/Kconfig"' "$DRV/Kconfig"
 fi
 
 if [[ "$HOOK_MODE" == "manual" ]]; then
-  log "HOOK_MODE=manual，检查五个接管点"
+  log "HOOK_MODE=manual，检查接管点"
   bash "$ROOT_DIR/scripts/gen-manual-hook.sh" || warn "接管点检查未通过，编译前需手工补齐"
 fi
 
-log "fetch 完成"
+log "fetch 完成（KSU $KSU_REF @ $KSU_HEAD）"

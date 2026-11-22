@@ -14,10 +14,14 @@
 
 | 组件 | 来源 | 许可 | 是否进入产物 |
 |---|---|---|---|
-| KernelSU（二改基座） | `KOWX712/KernelSU` | `kernel/` 目录 GPL-2.0-only；其余 GPL-3.0-or-later | 是，编入内核或 `.ko` |
+| BakaSU（二改基座） | `Baka-SU/BakaSU` | `kernel/` 目录 GPL-2.0-only；图标/视觉资源另有分层许可（见其 `ASSETS_LICENSE.md`）；其余 GPL-3.0-or-later | 是，编入内核或 `.ko` |
+| KernelSU（BakaSU 上游） | `tiann/KernelSU` | `kernel/` GPL-2.0-only；其余 GPL-3.0-or-later | 间接，经 BakaSU |
 | Linux 内核 | 各厂商公开源码（如 `realme-kernel-opensource/*`） | GPL-2.0 | 是，编入内核镜像 |
 | magiskboot | `topjohnwu/Magisk` | GPL-3.0 | 否，仅构建期用于重打包 |
 | GitHub Actions 运行时 | GitHub | 各自条款 | 否 |
+
+> 注意：BakaSU 的图标与管理器视觉资源不适用 GPL，属独立分层许可。
+> 若分发其管理器 APK，需先阅读 `ASSETS_LICENSE.md`，不要把这些资源拆出来单独再分发。
 
 ## 分发义务
 

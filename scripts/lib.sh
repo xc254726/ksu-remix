@@ -24,7 +24,7 @@ load_env() {
   [[ -n "${KSU_REPO:-}"       ]] || die "KSU_REPO 未设置"
   : "${DEFCONFIG:=gki_defconfig}"
   : "${KSU_MODE:=builtin}"
-  : "${HOOK_MODE:=kprobe}"
+  : "${HOOK_MODE:=upstream}"
   : "${JOBS:=$(nproc 2>/dev/null || echo 4)}"
   OUT_DIR="${OUT_DIR:-$ROOT_DIR/out}"
   mkdir -p "$OUT_DIR" "$BUILD_DIR"

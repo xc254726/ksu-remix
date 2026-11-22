@@ -22,19 +22,19 @@ on:
       ksu_repo:
         description: 'KernelSU 二改源'
         required: true
-        default: 'https://github.com/KOWX712/KernelSU'
+        default: 'https://github.com/Baka-SU/BakaSU'
       ksu_ref:
         description: 'KernelSU 分支/tag'
         required: true
-        default: 'master'
+        default: 'v4.2.0-rc3'
       ksu_mode:
         description: 'builtin 或 module'
         required: true
         default: 'builtin'
       hook_mode:
-        description: 'kprobe 或 manual'
+        description: 'upstream 或 manual'
         required: true
-        default: 'kprobe'
+        default: 'upstream'
 
 jobs:
   build:

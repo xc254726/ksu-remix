@@ -108,4 +108,4 @@ extern int ksu_handle_input_handle_event(unsigned int *type, unsigned int *code,
 - [ ] 五处都加了 `#ifdef CONFIG_KSU`，关掉 KSU 时能正常编过
 - [ ] 声明里的参数类型与函数实际签名逐字一致（尤其 `const` 与 `unsigned`）
 - [ ] 没在 `unlikely()` 里放有副作用的表达式
-- [ ] `HOOK_MODE=kprobe` 时不打这些补丁，两套同时生效会重复处理
+- [ ] `HOOK_MODE=upstream` 时不打这些补丁，两套同时生效会重复处理
