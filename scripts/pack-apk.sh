@@ -28,12 +28,14 @@ APK="$(ls -1t "$APK_DIR"/*.apk 2>/dev/null | head -1 || true)"
 log "输入 APK：$APK"
 
 # ---- ksud 检查：缺了就别浪费一次重打包 ----
+PROFILE="$BUILD_TYPE"
+[[ -n "${KSUD_PROFILE:-}" ]] && PROFILE="$KSUD_PROFILE"
 MISSING=()
 for abi in "${ARCHES[@]}"; do
   abi="$(echo "$abi" | tr -d '[:space:]')"
   [[ -n "$abi" ]] || continue
   triple="$(abi_to_triple "$abi")" || die "未知 ABI: $abi"
-  [[ -f "$KSU_DIR/target/$triple/release/ksud" ]] || MISSING+=("$abi")
+  [[ -f "$KSU_DIR/target/$triple/$PROFILE/ksud" ]] || MISSING+=("$abi")
 done
 if [[ ${#MISSING[@]} -gt 0 ]]; then
   die "缺少 ksud：${MISSING[*]}。先跑 make ksud KSUD_ARCHES=\"$ARCH_CSV\""

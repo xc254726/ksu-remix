@@ -83,14 +83,31 @@ build_one() {
 
   # 上游 CI 的原始命令。build-std-features 单独出现时部分 cargo 版本会报错，
   # 因此失败后自动补 -Z build-std 重试一次（会重编 std，明显更慢，但能过）。
-  local args=(-P 26 -t "$triple" -r -Z build-std-features=optimize_for_size -Z trim-paths)
+  local profile="release"
+  [[ "${APK_BUILD_TYPE:-release}" == "debug" ]] && profile="debug"
+
+  local args=(-P 26 -t "$triple")
+  [[ "$profile" == "release" ]] && args+=(-r)
+  args+=(-Z build-std-features=optimize_for_size -Z trim-paths)
+
   if ! ( cd "$KSU_DIR/userspace/ksud" && cargo +nightly ndk b "${args[@]}" ); then
     warn "$abi 首次编译失败，补 -Z build-std=std,panic_abort 重试"
     ( cd "$KSU_DIR/userspace/ksud" && cargo +nightly ndk b "${args[@]}" -Z build-std=std,panic_abort )
   fi
 
-  bin="$KSU_DIR/target/$triple/release/ksud"
-  [[ -f "$bin" ]] || die "编译结束但找不到 $bin"
+  # cargo ndk 是在 userspace/ksud 下跑的，产物落在 userspace/ksud/target，
+  # 而 repack_apk.py 只认 <repo>/target/<triple>/<type>/ksud，得搬一次。
+  local src="" candidate
+  for candidate in \
+      "$KSU_DIR/userspace/ksud/target/$triple/$profile/ksud" \
+      "$KSU_DIR/target/$triple/$profile/ksud"; do
+    [[ -f "$candidate" ]] && { src="$candidate"; break; }
+  done
+  [[ -n "$src" ]] || die "编译结束但找不到 ksud 产物（找过 userspace/ksud/target 与 target 下的 $triple/$profile）"
+
+  bin="$KSU_DIR/target/$triple/$profile/ksud"
+  mkdir -p "$(dirname "$bin")"
+  [[ "$src" != "$bin" ]] && cp -f "$src" "$bin"
   log "ok  $bin  ($(du -h "$bin" | cut -f1))"
 }
 
@@ -100,9 +117,11 @@ for abi in "${ARCHES[@]}"; do
 done
 
 log "ksud 全部完成"
+SUD_PROFILE="release"
+[[ "${APK_BUILD_TYPE:-release}" == "debug" ]] && SUD_PROFILE="debug"
 for abi in "${ARCHES[@]}"; do
   abi="$(echo "$abi" | tr -d '[:space:]')"
   [[ -n "$abi" ]] || continue
   triple="$(abi_to_triple "$abi")"
-  printf '  %-12s %s\n' "$abi" "$KSU_DIR/target/$triple/release/ksud"
+  printf '  %-12s %s\n' "$abi" "$KSU_DIR/target/$triple/$SUD_PROFILE/ksud"
 done
