@@ -31,6 +31,13 @@ trap 'rm -f "$FRAG"' EXIT
   else
     echo "CONFIG_KSU=y"
   fi
+  # 挂钩方式是 choice 三选一，由 HOOK_MODE 决定
+  case "$HOOK_MODE" in
+    upstream) echo "CONFIG_KSU_TRACEPOINT_HOOK=y" ;;
+    manual)   echo "CONFIG_KSU_MANUAL_HOOK=y" ;;
+    susfs)    echo "CONFIG_KSU_SUSFS=y" ;;
+    *) die "HOOK_MODE 只能是 upstream / manual / susfs，当前：$HOOK_MODE" ;;
+  esac
 } >"$FRAG"
 
 log "合并二改配置（页大小=$PS，LOCALVERSION=$LOCALVER，KSU_MODE=$KSU_MODE）"
@@ -48,7 +55,32 @@ assert_cfg() {
 }
 assert_cfg CONFIG_LOCALVERSION "$LOCALVER"
 if [[ "$PS" == "4k" ]]; then assert_cfg CONFIG_ARM64_4K_PAGES "y"; else assert_cfg CONFIG_ARM64_16K_PAGES "y"; fi
-if [[ "$KSU_MODE" == "module" ]]; then assert_cfg CONFIG_KSU "m"; else assert_cfg CONFIG_KSU "y"; fi
+
+# KSU 的 depends 不满足时，kconfig 会静默把 CONFIG_KSU 丢掉，不报任何错，
+# 结果就是编出来的内核里没有 KSU，管理器又显示"未安装"。
+want_ksu="y"; [[ "$KSU_MODE" == "module" ]] && want_ksu="m"
+got_ksu=$(grep -E '^CONFIG_KSU=' "$OUT_DIR/.config" | tail -1 | cut -d= -f2- | tr -d '"')
+if [[ "$got_ksu" != "$want_ksu" ]]; then
+  warn "CONFIG_KSU 期望 '$want_ksu'，实际 '${got_ksu:-未设置}' —— 依赖没满足，被 kconfig 丢弃了"
+  warn "对照 kernel/Kconfig 里 config KSU 的 depends 逐项检查"
+  die "KSU 未生效，中止"
+fi
+log "ok  CONFIG_KSU=$got_ksu"
+
+# 挂钩方式是 choice，必须且只能命中一个；一个都没有 = 内核里没有挂钩实现，
+# 就算 CONFIG_KSU=y 也拿不到 root
+HOOK_KEY=""
+case "$HOOK_MODE" in
+  upstream) HOOK_KEY=CONFIG_KSU_TRACEPOINT_HOOK ;;
+  manual)   HOOK_KEY=CONFIG_KSU_MANUAL_HOOK ;;
+  susfs)    HOOK_KEY=CONFIG_KSU_SUSFS ;;
+esac
+if ! grep -qE "^$HOOK_KEY=y" "$OUT_DIR/.config"; then
+  warn "挂钩方式 $HOOK_MODE 未生效（$HOOK_KEY 不是 y）"
+  grep -E '^CONFIG_KSU_(TRACEPOINT|MANUAL)_HOOK=|^CONFIG_KSU_SUSFS=' "$OUT_DIR/.config" || warn "  三个 hook 选项全都没出现在 .config 里"
+  die "挂钩配置失败，中止"
+fi
+log "ok  $HOOK_KEY=y"
 
 if grep -q '^CONFIG_MODVERSIONS=y' "$OUT_DIR/.config"; then
   warn "CONFIG_MODVERSIONS=y：vendor 模块的符号 CRC 必须与本内核一致，否则加载失败"

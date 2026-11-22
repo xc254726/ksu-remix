@@ -22,17 +22,17 @@ on:
       ksu_repo:
         description: 'KernelSU 二改源'
         required: true
-        default: 'https://github.com/Baka-SU/BakaSU'
+        default: 'https://github.com/xc254726/sbsu'
       ksu_ref:
         description: 'KernelSU 分支/tag'
         required: true
-        default: 'v4.2.0-rc3'
+        default: 'main'
       ksu_mode:
         description: 'builtin 或 module'
         required: true
         default: 'builtin'
       hook_mode:
-        description: 'upstream 或 manual'
+        description: 'upstream / manual / susfs'
         required: true
         default: 'upstream'
 

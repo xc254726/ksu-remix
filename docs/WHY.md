@@ -33,10 +33,10 @@ KernelSU 的挂钩方式经历了三代：
 | 较新 | tracepoint / LSM hook | 内核把对应 tracepoint 裁掉，或 LSM 钩子链被厂商重排 |
 | 兜底 | 手工在源码里插入调用点（manual hook） | 需要能编内核 |
 
-BakaSU v4.2.0 采用的是 **LSM hook（`kernel/hook/lsm_hooks.c`）+ syscall redirect
-（`syscall_hook_manager.c`）+ tracepoint marker** 的组合，比单纯依赖 kprobe 的内核
-更容易在厂商裁剪过的 GKI 内核上挂住。它同时保留 Manual Hook 与 SUSFS Inline Hook
-两条可选路径，都在基座内部实现，不需要外部 kconfig 开关。
+sbsu（BakaSU 派生）把挂钩方式做成了 Kconfig 里的 **choice，三选一**：
+`kernel/hook/` 下 `lsm_hooks.c`（LSM）、`syscall_hook_manager.c`（syscall redirect）、
+`tp_marker.c`（tracepoint marker）三套实现，编译期只编进一套。
+这比"只提供单一 kprobe 路径"的发行版更容易适配被厂商裁剪过的 GKI 内核。
 
 原版给终端用户只提供"刷预编译镜像"这一条路，而这些镜像按 **GKI KMI + 页大小** 分档，
 并不会针对某一台设备的厂商内核做适配。厂商（尤其是联发科平台）常在 GKI 基础上改符号、
@@ -48,18 +48,18 @@ BakaSU v4.2.0 采用的是 **LSM hook（`kernel/hook/lsm_hooks.c`）+ syscall re
 
 ### 差异一：挂钩策略不只有一种
 
-BakaSU 内置三种模式，编译进内核后按内核能力生效：
+基座内置三种模式，编译期三选一：
 
-| 模式 | 原理 | 适用 |
-|---|---|---|
-| Tracepoint Syscall Redirect | 在 tracepoint 处重定向 syscall，默认模式 | GKI 2.0（5.10+），arm64 / x86_64 |
-| Manual Hook | 直接在源码插入调用点，兼容到 3.4~6.18 | 内核裁掉 tracepoint 时 |
-| SUSFS Inline Hook | 由 SUSFS 提供的 inline 挂钩 | 需要 SUSFS 隐藏能力时 |
+| 模式 | kconfig | 原理 | 适用 |
+|---|---|---|---|
+| Tracepoint Syscall Redirect | `CONFIG_KSU_TRACEPOINT_HOOK` | 在 tracepoint 处重定向 syscall，默认模式 | GKI 2.0（5.10+），arm64 / x86_64 |
+| Manual Hook | `CONFIG_KSU_MANUAL_HOOK` | 直接在源码插入调用点，兼容到 3.4~6.18 | 内核裁掉 tracepoint 时 |
+| SUSFS Inline Hook | `CONFIG_KSU_SUSFS` | 由 SUSFS 提供的 inline 挂钩 | 需要 SUSFS 隐藏能力时（64BIT + THREAD_INFO_IN_TASK） |
 
-本项目的 `HOOK_MODE` 只控制**是否再额外注入一层自己的 syscall 接管点**：
+**三选一意味着必须恰好命中一个。** 一个都没生效时 `CONFIG_KSU=y` 也没有挂钩实现，照样拿不到 root。
 
-- `upstream`（默认）：完全用基座自带实现，不要重复挂钩
-- `manual`：基座挂不上时叠加，接管点如下
+本项目的 `HOOK_MODE` 就是映射到这三项，`scripts/config.sh` 会把它写进 `.config` 并在
+`olddefconfig` 之后复核；此外 `manual` 模式下还会额外注入一层自己的 syscall 接管点：
 
 | 文件 | 函数 | 作用 |
 |---|---|---|

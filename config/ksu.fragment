@@ -1,20 +1,24 @@
 # KernelSU 二改 —— kconfig fragment
-# 目标：BakaSU（Baka-SU/BakaSU，原 ReSukiSU）
+# 目标：xc254726/sbsu（BakaSU 派生，管理器已 rebrand 为 rue / com.rue.manager）
 #
-# 注意：BakaSU 的 Kconfig 只有 CONFIG_KSU 及若干 KSU_* 附加项，
-# 没有 CONFIG_KSU_KPROBES_HOOK（那是 SukiSU/KowSU 的选项）。
-# 它靠 LSM hook + syscall redirect 生效，编进内核即可，无需额外 hook 开关。
+# 挂钩方式不写在这里：它是 Kconfig 里的 choice（三选一），
+# 由 .env 的 HOOK_MODE 在 scripts/config.sh 里动态生成。
 
 CONFIG_KSU=y
 
-# 调试模式：排查时可开，日志更详细，性能略降
-# CONFIG_KSU_DEBUG is not set
+# 符号表：KSU 靠它解析内核符号（Kconfig 里已 select KALLSYMS）
+CONFIG_KALLSYMS=y
 
-# --- 安全模式 ---
-# 音量下键触发，能救回因模块导致的 bootloop
+# 多管理器兼容：让官方 KernelSU / KowSU 管理器也能连上本内核
+CONFIG_KSU_MULTI_MANAGER_SUPPORT=y
+
+# --- 调试与安全模式 ---
+# CONFIG_KSU_DEBUG is not set
+# 音量下键进安全模式，救 bootloop
 CONFIG_INPUT=y
 CONFIG_INPUT_EVDEV=y
 
-# --- 注意：以下两项由 scripts/config.sh 动态写入，不要在此手填 ---
+# --- 以下由 scripts/config.sh 动态写入，不要在此手填 ---
 # CONFIG_LOCALVERSION="-<目标内核版本后缀>"
 # CONFIG_ARM64_4K_PAGES=y / CONFIG_ARM64_16K_PAGES=y
+# CONFIG_KSU_TRACEPOINT_HOOK=y | CONFIG_KSU_MANUAL_HOOK=y | CONFIG_KSU_SUSFS=y

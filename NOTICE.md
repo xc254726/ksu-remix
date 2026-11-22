@@ -14,8 +14,9 @@
 
 | 组件 | 来源 | 许可 | 是否进入产物 |
 |---|---|---|---|
-| BakaSU（二改基座） | `Baka-SU/BakaSU` | `kernel/` 目录 GPL-2.0-only；图标/视觉资源另有分层许可（见其 `ASSETS_LICENSE.md`）；其余 GPL-3.0-or-later | 是，编入内核或 `.ko` |
-| KernelSU（BakaSU 上游） | `tiann/KernelSU` | `kernel/` GPL-2.0-only；其余 GPL-3.0-or-later | 间接，经 BakaSU |
+| sbsu（二改基座） | `xc254726/sbsu` | 沿用上游 BakaSU 许可：`kernel/` GPL-2.0-only；其余 GPL-3.0 | 是，编入内核或 `.ko` |
+| BakaSU（sbsu 上游） | `Baka-SU/BakaSU` | `kernel/` GPL-2.0-only；图标/视觉资源另有分层许可（见其 `ASSETS_LICENSE.md`）；其余 GPL-3.0-or-later | 间接，经 sbsu |
+| KernelSU（BakaSU 上游） | `tiann/KernelSU` | `kernel/` GPL-2.0-only；其余 GPL-3.0-or-later | 间接 |
 | Linux 内核 | 各厂商公开源码（如 `realme-kernel-opensource/*`） | GPL-2.0 | 是，编入内核镜像 |
 | magiskboot | `topjohnwu/Magisk` | GPL-3.0 | 否，仅构建期用于重打包 |
 | GitHub Actions 运行时 | GitHub | 各自条款 | 否 |

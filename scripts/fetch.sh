@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# 拉取内核源码 + 集成 KernelSU（BakaSU / KowSU 通用）
+# 拉取内核源码 + 集成 KernelSU（sbsu / BakaSU / KowSU 通用）
 #
-# 注意：BakaSU 自带的 kernel/setup.sh 会硬编码 `git clone ReSukiSU/ReSukiSU`
-# 并自行 checkout main，会忽略这里的 KSU_REF 与本地改动。因此本脚本自行完成
-# 集成，不调用上游 setup.sh。
+# 注意：sbsu 自带的 kernel/setup.sh 仍硬编码 `git clone Baka-SU/BakaSU`
+# 并自行 checkout main，会忽略这里的 KSU_REF、也会把你的 rebrand 覆盖掉。
+# 因此本脚本自行完成集成，不调用上游 setup.sh。
 source "$(dirname "$0")/lib.sh"
 load_env
 
