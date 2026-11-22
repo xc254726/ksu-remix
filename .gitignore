@@ -6,3 +6,4 @@ out/
 *.apk
 .DS_Store
 patches/manual-hook/REPORT.md
+.push_via_api.py
